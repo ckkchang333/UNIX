@@ -8,7 +8,7 @@
 
 #define buffer_size 4096
 
-char** read_input(size_t size);
+char** read_input(size_t size, int exit_value);
 
 int fork_execute(char **argv);
 
@@ -30,26 +30,27 @@ void print_argv_letters(char ** argv) {
 
 void print_argv(char ** argv) {
  int i = 0;
+ printf("Printing argv\n");
  while(argv[i] != NULL) {
   printf("%d: %s\n", i, argv[i]);
  ++i;
  }
- printf("\n");
+ printf("Finished printing argv\n");
 }
 
 
 
 int main() {
  //char prompt[256] = ">";
+ int exit_value = 0;
  char * prompt = (char *) malloc(sizeof(char) * 256);
  //memset(prompt, 0, sizeof(char) * 256);
  while (1) {
-   char ** argv = (char **) read_input(buffer_size);
-   //memset(prompt, 0, sizeof(char) * 256);
+   char ** argv = (char **) read_input(buffer_size, exit_value);
+   //gmemset(prompt, 0, sizeof(char) * 256);
    //print_argv(argv);
    //printf("%s: %x\n", "printing first argument", (int) strtol(argv[0], NULL, 16));
    if(strcmp(argv[0], "cd") == 0) {
-    printf("cd or exit\n");
     chdir(argv[1]);
    }
    else if(strcmp(argv[0], "exit") == 0) {
@@ -70,7 +71,7 @@ int main() {
     continue;
    }
    else {
-    fork_execute(argv);
+    exit_value = fork_execute(argv);
    }
    //printf("%s: %li\n", "Size of argv's first argument", strlen(argv[0]));
    //printf("\n\n\n");
@@ -80,7 +81,7 @@ int main() {
  free(prompt);
 }
 
-char** read_input(size_t size) {
+char** read_input(size_t size, int exit_value) {
  printf("%c ", '>');
  char *input = malloc(sizeof(char) * buffer_size);
  if(input == NULL) {
@@ -98,7 +99,14 @@ char** read_input(size_t size) {
    token[strlen(token) - 1] = '\0';
   }
   //token[strlen(token) - 1] = '\0';
+  if(strcmp(token, "$?") == 0) {
+   char *exit_string = malloc(sizeof(char) * 3);
+   sprintf(exit_string, "%d", exit_value);
+   //printf("exit string: %s\n",exit_string);
+   token = exit_string;
+  }
   argv[i++] = token;
+  //print_argv(argv);
   token = strtok(NULL, " ");
  }
 
@@ -107,16 +115,24 @@ char** read_input(size_t size) {
 
 int fork_execute(char **argv) {
  if(fork() == 0) {
-    if (execvp(argv[0], argv) == -1) {
-     perror("command failed to execute");
-    }
-    return EXIT_FAILURE;
-   }
-   else {
-    int status;
-    wait(&status);
-   }
- return EXIT_SUCCESS;
+ int exit_value = execvp(argv[0], argv);
+  if (exit_value == -1) {
+   perror("command failed to execute");
+   return exit_value;
+  }
+ 
+ }
+ else {
+  int status = 0;
+  wait(&status);
+  //printf("%s: %d\n", "Status", status);
+  if(WIFSIGNALED(status)) {
+   return WTERMSIG(status) + 127;
+  }
+  else {
+   return EXIT_SUCCESS;
+  }
+ }
 }
 
 void change_prompt(char** argv, char** prompt) {
