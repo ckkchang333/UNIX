@@ -118,6 +118,7 @@ int fork_execute(char **argv) {
  }
  else {
   signal(SIGINT, interrupt_handler);
+  signal(SIGQUIT, interrupt_handler);
   int status = 0;
   wait(&status);
   //printf("%s: %d\n", "Status", status);
