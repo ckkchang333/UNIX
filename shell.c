@@ -12,7 +12,8 @@ char** read_input(size_t size, int exit_value, char *prompt);
 
 int fork_execute(char **argv);
 
-void change_prompt(char **argv, char** prompt);
+
+void interrupt_handler(int signalNum);
 
 
 void print_argv_letters(char ** argv) {
@@ -42,6 +43,9 @@ void print_argv(char ** argv) {
 
 int main() {
  //char prompt[256] = ">";
+ //signal(SIGINT, interrupt_handler);
+ signal(SIGQUIT, SIG_IGN);
+ signal(SIGINT, SIG_IGN);
  int exit_value = 0;
  char * prompt = (char *) malloc(sizeof(char) * 256);
  strncpy(prompt, ">", 2);
@@ -58,15 +62,8 @@ int main() {
     return EXIT_SUCCESS;
    }
    else if(strstr(argv[0], "PS1=") != NULL && argv[0][strlen(argv[0]) - 1] == '"') {
-    //printf("%s\n", "In change prompt section");
-    //printf("End");
     memset(prompt, 0, sizeof(char) * 256);
-    
-    //printf("%s: %s\n", "argv[0]", argv[0]);
-    //printf("%li\n", strlen(argv[0]) - 6);
     strncpy(prompt, argv[0] + 5, strlen(argv[0]) - 6);
-    //printf("%s\n", "Changed prompt");
-    //printf("%s: %s\n", "prompt", prompt);
    }
    else if(strlen(argv[0]) == 0) {
     continue;
@@ -74,17 +71,12 @@ int main() {
    else {
     exit_value = fork_execute(argv);
    }
-   //printf("%s: %li\n", "Size of argv's first argument", strlen(argv[0]));
-   //printf("\n\n\n");
-   //printf("End\n");
    free(argv);
-   //printf("End\n");
  }
  free(prompt);
 }
 
 char** read_input(size_t size, int exit_value, char *prompt) {
- printf("Printing prompt\n");
  printf("%s ", prompt);
  char *input = malloc(sizeof(char) * buffer_size);
  if(input == NULL) {
@@ -118,27 +110,44 @@ char** read_input(size_t size, int exit_value, char *prompt) {
 
 int fork_execute(char **argv) {
  if(fork() == 0) {
- int exit_value = execvp(argv[0], argv);
+  int exit_value = execvp(argv[0], argv);
   if (exit_value == -1) {
    perror("command failed to execute");
-   return exit_value;
   }
- 
+  puts("Everything worked out fine");
  }
  else {
+  signal(SIGINT, interrupt_handler);
   int status = 0;
   wait(&status);
   //printf("%s: %d\n", "Status", status);
   if(WIFSIGNALED(status)) {
-   return WTERMSIG(status) + 127;
+   puts("Signal interrupt");
+   return WTERMSIG(status) + 128;
+  }
+  else if(WIFEXITED(status)) {
+   puts("Child Exited");
+   return WEXITSTATUS(status);
   }
   else {
-   return EXIT_SUCCESS;
+   exit(EXIT_FAILURE);
   }
+  /*if(WIFEXITED(status)) {
+   
+   printf("Exit status: %d\n", WEXITSTATUS(status));
+   return WEXITSTATUS(status);
+  
+  }
+  else if(WIFSIGNALED(status)) {
+    puts("Signal interrupt");
+    return WTERMSIG(status) + 127;
+  }
+  else {
+   exit(EXIT_FAILURE);
+  }*/
  }
 }
 
-void change_prompt(char** argv, char** prompt) {
- //if() {}
+void interrupt_handler(int signalNum) {
+ puts(": Signal caught");
 }
-
