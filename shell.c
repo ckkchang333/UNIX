@@ -48,7 +48,13 @@ int main() {
  signal(SIGINT, SIG_IGN);
  int exit_value = 0;
  char * prompt = (char *) malloc(sizeof(char) * 256);
- strncpy(prompt, ">", 2);
+ char *env_PS1;
+ if((env_PS1 = getenv("PS1")) != NULL) {
+  strncpy(prompt, env_PS1, strlen(env_PS1) + 1);
+ }
+ else {
+  strncpy(prompt, ">", 2);
+ }
  //memset(prompt, 0, sizeof(char) * 256);
  while (1) {
    char ** argv = (char **) read_input(buffer_size, exit_value, prompt);
