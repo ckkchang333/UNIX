@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -19,6 +20,18 @@ void interrupt_handler(int signalNum);
 void redirect(char **argv);
 
 void set_starting_prompt(char** prompt);
+
+void remove_redir(char** argv, int *index);
+
+void print_argv(char **argv) {
+ int i = 0;
+ printf("Printing argv\n");
+ while(argv[i] != NULL) {
+  printf("%d: %s\n", i, argv[i]);
+  ++i;
+ }
+ printf("Finished printing\n");
+}
 
 
 int main() {
@@ -170,6 +183,7 @@ void redirect(char **argv) {
   ++i;
  }
  --i;
+
  while(i >= 0) {
 
   // Stdout redirection
@@ -192,13 +206,12 @@ void redirect(char **argv) {
     perror("Memset B for stdout redirection failed");
     exit(EXIT_FAILURE);
    }
-   argv[i] = NULL;
-   argv[i + 1] = NULL;
-   }
+   remove_redir(argv, &i);
+  }
 
   // Stdout append redirection  
   else if(strcmp(argv[i], ">>") == 0) {
-   int fd = open(argv[i + 1], O_WRONLY | O_APPEND | O_CREAT);
+   int fd = open(argv[i + 1], O_WRONLY | O_APPEND | O_CREAT, 0664);
    if(fd < 0) {
     perror("Open for stdout append redirection in redirct failed");
     exit(EXIT_FAILURE);
@@ -216,8 +229,7 @@ void redirect(char **argv) {
     perror("Memset B for stdout append redirection failed");
     exit(EXIT_FAILURE);
    }
-   argv[i] = NULL;
-   argv[i + 1] = NULL;
+   remove_redir(argv, &i);
   }
 
   // Stdin redirection
@@ -236,15 +248,12 @@ void redirect(char **argv) {
    if (memset(argv[i + 1], 0, strlen(argv[i + 1]) + 1) == NULL) {
     perror("Memset B for stdin redirection failed");
    }
-   argv[i] = NULL;
-   argv[i + 1] = NULL;
+   remove_redir(argv, &i);
   }
 
   // Stderr redirection
-  else if(strstr(argv[i], "2>") != NULL) {
-   char fileName[BUFFER_SIZE];
-   strncpy(fileName, argv[i] + 2, strlen(argv[i]) -1);
-   int fd = open(fileName, O_WRONLY | O_CREAT | O_TRUNC);
+  else if(strcmp(argv[i], "2>") == 0) {
+   int fd = open(argv[i + 1], O_WRONLY | O_CREAT | O_TRUNC, 0664);
    if(fd < 0) {
     perror("Open for stderr redirection in redirct failed");
     exit(EXIT_FAILURE);
@@ -262,4 +271,17 @@ void redirect(char **argv) {
   }
   --i;
  }
+}
+
+// Removes the redirection portion from the command line
+// after redirection is completed
+void remove_redir(char** argv, int *index) {
+ int old = *index; 
+ while(argv[(*index) + 2] != NULL) {
+  argv[*index] = argv[(*index) + 2];
+  ++(*index);
+ }
+ argv[*index] = NULL;
+ argv[(*index) + 1] = NULL;
+ (*index) = old;
 }
